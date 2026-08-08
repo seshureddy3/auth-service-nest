@@ -1,0 +1,13 @@
+npm install @nestjs-modules/mailer nodemailer
+npm install --save-dev @types/nodemailer
+
+redis
+redis-cli
+
+ping
+
+sudo apt update
+sudo apt install redis-server -y
+sudo service redis-server start
+
+npm instal redis
