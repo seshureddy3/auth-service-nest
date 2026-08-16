@@ -25,6 +25,8 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { AcceptInvitationDto } from './dto/accept-invitation.dto';
 import { RequestOtpDTo } from './dto/request-otp.dto';
 import { RedisService } from '../redis/redis.service';
+import { AdminDeleteUserDTO } from './dto/delete-admin.dto';
+import { UserDeleteDto } from './dto/delete-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -354,15 +356,12 @@ export class AuthService {
   }
 
   async logout(userId: string, accessToken: string): Promise<void> {
-    // 1. Evict the active refresh session out of memory cache completely
     await this.redisService.delRefreshToken(userId);
     try {
-      // 2. Extract remaining lifetime window of access token to commit to blacklist
       const decoded = this.jwtService.decode(accessToken) as { exp: number };
       const currentTimeInSeconds = Math.floor(Date.now() / 1000);
       const remainingLifetime = decoded.exp - currentTimeInSeconds;
       if (remainingLifetime > 0) {
-        // Explicitly block token inside Redis only for its remaining expiration lifespan window
         await this.redisService.blacklistAccessToken(
           accessToken,
           remainingLifetime,
@@ -376,6 +375,103 @@ export class AuthService {
         `⚠️ Failed to parse access token expiration window during logout tracking.`,
       );
     }
+  }
+
+  async userDelete(
+    userId: string,
+    userPassword: UserDeleteDto,
+    accessToken: string,
+  ): Promise<void> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: { id: true, password: true, deletedAt: true },
+      withDeleted: true,
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User Profile not found!`);
+    }
+
+    if (user.deletedAt) {
+      throw new BadRequestException(`This account has already been deleted`);
+    }
+
+    const isPasswordValid = await this.verifyPassword(
+      userPassword.password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException(
+        `Incorrect password, Account deletion aborted.`,
+      );
+    }
+
+    user.reason = 'Self-deleted by user';
+    user.deletedBy = userId;
+
+    await this.userRepo.save(user);
+    await this.userRepo.softDelete(userId);
+
+    await this.redisService.delRefreshToken(userId);
+    try {
+      const decoded = this.jwtService.decode(accessToken) as { exp: number };
+      const currentTimeInSeconds = Math.floor(Date.now() / 1000);
+      const remainingLifetime = decoded.exp - currentTimeInSeconds;
+
+      if (remainingLifetime > 0) {
+        await this.redisService.blacklistAccessToken(
+          accessToken,
+          remainingLifetime,
+        );
+      }
+
+      this.logger.log(
+        `🛡️ Account self-deleted. Access token blacklisted: ${userId}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `⚠️ Failed to blacklist access token during self-deletion.`,
+      );
+    }
+  }
+
+  async adminDeleteUser(
+    userId: string,
+    reason: string,
+    adminId: string,
+  ): Promise<void> {
+    const targetUser = await this.userRepo.findOne({
+      where: { id: userId },
+      withDeleted: true,
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException(
+        `The user you are trying to delete does not exists`,
+      );
+    }
+
+    if (targetUser.deletedAt) {
+      throw new BadRequestException(`This user account is already deleted.`);
+    }
+
+    if (userId === adminId) {
+      throw new BadRequestException(
+        `You cannot delete your own account via this route`,
+      );
+    }
+
+    targetUser.reason = reason;
+    targetUser.deletedBy = adminId;
+
+    await this.userRepo.save(targetUser);
+    await this.userRepo.softDelete(userId);
+
+    await this.redisService.delRefreshToken(userId);
+    this.logger.log(
+      `🛡️ Admin evicted Redis refresh tokens for user: ${userId}`,
+    );
   }
 
   private async hashPassword(password: string): Promise<string> {

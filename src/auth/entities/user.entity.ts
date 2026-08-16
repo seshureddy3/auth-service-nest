@@ -43,6 +43,9 @@ export class User {
   })
   status!: UserStatus;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  reason?: string;
+
   @Column({ type: 'varchar', length: 6, nullable: true, select: false })
   otpCode!: string | null;
 

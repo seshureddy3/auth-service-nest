@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -25,6 +26,10 @@ import { UserLoginDto } from './dto/user-login.dto';
 import { AcceptInvitationDto } from './dto/accept-invitation.dto';
 import { RequestOtpDTo } from './dto/request-otp.dto';
 import { BlackListGuard } from './guards/blacklisted.guard';
+import { AdminDeleteUserDTO } from './dto/delete-admin.dto';
+import { CurrentUser } from './decorators/currentUser.decorator';
+import { AuthGuard } from '@nestjs/passport';
+import { UserDeleteDto } from './dto/delete-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -144,6 +149,42 @@ export class AuthController {
     return new ApiResponseDto({
       success: true,
       message: 'Logout Successfull!',
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard, BlackListGuard)
+  @Roles(UserRole.ADMIN)
+  @Delete('user/:id/delete')
+  @HttpCode(HttpStatus.OK)
+  async adminDeleteUser(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) userId: string,
+    @Body() dto: AdminDeleteUserDTO,
+    @CurrentUser() admin: any,
+  ): Promise<ApiResponseDto<null>> {
+    await this.authService.adminDeleteUser(userId, dto.reason, admin.id);
+
+    return new ApiResponseDto<null>({
+      success: true,
+      message: 'user account has been deleted',
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, BlackListGuard)
+  @Delete('delete/self')
+  @HttpCode(HttpStatus.OK)
+  async deleteOwnAccount(
+    @CurrentUser() user: any,
+    @Body() dto: UserDeleteDto,
+    @Req() req: any,
+  ): Promise<ApiResponseDto<null>> {
+    const authHeader = req.headers.authorization || '';
+    const accessToken = authHeader.replace('Bearer ', '').trim();
+
+    await this.authService.userDelete(user.id, dto, accessToken);
+
+    return new ApiResponseDto<null>({
+      success: true,
+      message: 'Your account has been successfully deleted',
     });
   }
 }

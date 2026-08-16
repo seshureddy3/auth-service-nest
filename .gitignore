@@ -20,6 +20,8 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+.devcontainer
+
 <<<<<<< HEAD
 # dotenv environment variable files
 .env
