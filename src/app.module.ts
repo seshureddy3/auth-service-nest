@@ -7,11 +7,27 @@ import { AuthModule } from './auth/auth.module';
 import { User } from './auth/entities/user.entity';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { RedisModule } from './redis/redis.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { BullModule } from '@nestjs/bullmq';
+import { CleanupModule } from './cleanup/cleanup.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+
+    ScheduleModule.forRoot(),
+
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('REDIS_HOST'),
+          port: configService.get<number>('REDIS_PORT'),
+        },
+      }),
     }),
 
     MailerModule.forRootAsync({
@@ -52,6 +68,7 @@ import { RedisModule } from './redis/redis.module';
 
     AuthModule,
     RedisModule,
+    CleanupModule,
   ],
   controllers: [AppController],
   providers: [AppService],

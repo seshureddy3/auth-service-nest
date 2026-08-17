@@ -11,3 +11,11 @@ sudo apt install redis-server -y
 sudo service redis-server start
 
 npm instal redis
+
+// Bull MQ
+
+npm install @nestjs/schedule @nestjs/bullmq bullmq
+npm install --save-dev @types/cron
+
+@OneToOne(() => Profile, profile => profile.user, { onDelete: 'CASCADE' }) // <-- This allows the hard delete to succeed
+profile: Profile;
