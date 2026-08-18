@@ -10,8 +10,6 @@ import { UserCleanupProcessor } from './user-cleanup.processor';
   imports: [
     TypeOrmModule.forFeature([User]),
 
-    ConfigService,
-
     BullModule.registerQueue(
       {
         name: 'USER_CLEANUP_QUEUE',

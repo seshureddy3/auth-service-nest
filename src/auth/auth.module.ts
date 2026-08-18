@@ -10,6 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
 import { BlackListGuard } from './guards/blacklisted.guard';
 import { RedisModule } from '../redis/redis.module';
+import { AleModule } from '../ale/ale.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { RedisModule } from '../redis/redis.module';
         },
       }),
     }),
+    AleModule,
     RedisModule,
   ],
   controllers: [AuthController],

@@ -10,6 +10,7 @@ import { RedisModule } from './redis/redis.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bullmq';
 import { CleanupModule } from './cleanup/cleanup.module';
+import { AleModule } from './ale/ale.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { CleanupModule } from './cleanup/cleanup.module';
     AuthModule,
     RedisModule,
     CleanupModule,
+    AleModule,
   ],
   controllers: [AppController],
   providers: [AppService],

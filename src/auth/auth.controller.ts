@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Req,
+  UseInterceptors,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -28,12 +29,21 @@ import { RequestOtpDTo } from './dto/request-otp.dto';
 import { BlackListGuard } from './guards/blacklisted.guard';
 import { AdminDeleteUserDTO } from './dto/delete-admin.dto';
 import { CurrentUser } from './decorators/currentUser.decorator';
-import { AuthGuard } from '@nestjs/passport';
 import { UserDeleteDto } from './dto/delete-user.dto';
+import { AleService } from 'src/ale/ale.service';
+import { EncryptionInterceptor } from 'src/ale/ale.interceptor';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly aleService: AleService,
+  ) {}
+
+  @Get('public-key')
+  getPublicKey() {
+    return { publicKey: this.aleService.publicKey };
+  }
 
   @UseGuards(JwtAuthGuard, RolesGuard, BlackListGuard)
   @Roles(UserRole.ADMIN)
@@ -114,6 +124,7 @@ export class AuthController {
     });
   }
 
+  @UseInterceptors(EncryptionInterceptor)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() userData: UserLoginDto): Promise<AuthPayloadDto> {
